@@ -23,6 +23,5 @@ export enum GameMode {
   FILL_BLANKS = 'FILL_BLANKS',
   BUBBLE_POP = 'BUBBLE_POP',
   WORD_SEARCH = 'WORD_SEARCH',
-  BATTLE = 'BATTLE',
   MEMORY = 'MEMORY'
 }

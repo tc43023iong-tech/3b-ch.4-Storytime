@@ -18,7 +18,8 @@ import {
   Info,
   Star,
   Pencil,
-  RotateCcw
+  RotateCcw,
+  Swords
 } from 'lucide-react';
 
 const WORDS: Word[] = [
@@ -49,31 +50,64 @@ const WORDS: Word[] = [
   { id: 25, english: 'control', chinese: '控制', pronunciation: '/kənˈtrəʊl/', emoji: '🎮', syllables: 'con-trol', breakdown: 'con (against) + troll (roll)', etymology: 'Latin "contrarotulus" (ledger). 拉丁語 "contrarotulus"（分類帳）。', funFact: 'The queen wanted to control the sun! 皇后想要控制太陽！', sentence: 'Can you control this robot?', realityInfo: 'Self-control is a life skill. 自我控制是一項重要的生活技能。' }
 ];
 
+// Simple synth sounds to avoid external asset dependency
+const playCorrectSound = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+  osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1); // A5
+  gain.gain.setValueAtTime(0.1, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.3);
+};
+
+const playWrongSound = () => {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.1, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.2);
+};
+
 const App: React.FC = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
   const [score, setScore] = useState(0);
 
-  const addScore = (pts: number) => setScore(prev => prev + pts);
+  const addScore = (pts: number) => {
+    setScore(prev => prev + pts);
+  };
 
   return (
-    <div className="min-h-screen pb-24 crayon-text selection:bg-pink-100 scribble-bg">
-      <header className="p-4 flex justify-between items-center bg-white/60 backdrop-blur-md sticky top-0 z-20 border-b-4 border-[#5d4037]/30">
+    <div className="min-h-screen pb-24 crayon-text selection:bg-pink-100 scribble-bg overflow-hidden flex flex-col">
+      <header className="p-4 flex justify-between items-center bg-white/60 backdrop-blur-md sticky top-0 z-50 border-b-4 border-[#5d4037]/30">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setMode(GameMode.MENU)}>
-          <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center crayon-border border-[#5d4037]">
-            <Pencil className="text-[#5d4037]" size={22} />
+          <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center crayon-border border-[#5d4037]">
+            <Pencil className="text-[#5d4037]" size={18} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-[#5d4037] tracking-tight leading-none">Crayon P3</h1>
-            <p className="text-xs font-bold text-[#8d6e63]">Ch4 Storytime</p>
+            <h1 className="text-2xl font-black text-[#5d4037] tracking-tight leading-none">Crayon P3</h1>
+            <p className="text-[10px] font-bold text-[#8d6e63]">Ch4 Storytime</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-[#fff9c4] px-5 py-2 crayon-border border-[#5d4037] crayon-shadow rotate-1">
-          <Star className="text-amber-500 fill-amber-500 floating" size={24} />
-          <span className="text-3xl font-black">{score}</span>
+        <div className="flex items-center gap-3 bg-[#fff9c4] px-4 py-1 crayon-border border-[#5d4037] crayon-shadow rotate-1">
+          <Star className="text-amber-500 fill-amber-500 floating" size={20} />
+          <span className="text-2xl font-black">{score}</span>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 mt-4">
+      <main className="flex-1 max-w-7xl mx-auto p-2 md:p-4 w-full">
         {mode === GameMode.MENU && <MainMenu setMode={setMode} />}
         {mode === GameMode.REVIEW && <WordReview setMode={setMode} />}
         {mode === GameMode.DIARY && <DiaryReview onBack={() => setMode(GameMode.MENU)} />}
@@ -84,9 +118,10 @@ const App: React.FC = () => {
         {mode === GameMode.BUBBLE_POP && <BubblePop onComplete={() => { addScore(25); setMode(GameMode.MENU); }} />}
         {mode === GameMode.WORD_SEARCH && <WordSearchGame onComplete={() => { addScore(30); setMode(GameMode.MENU); }} />}
         {mode === GameMode.MEMORY && <MemoryGame onComplete={() => { addScore(25); setMode(GameMode.MENU); }} />}
+        {mode === GameMode.TUG_OF_WAR && <TugOfWarGame onComplete={() => { addScore(30); setMode(GameMode.MENU); }} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white p-3 flex justify-around items-center overflow-x-auto gap-2 z-30 border-t-4 border-[#5d4037]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white p-2 flex justify-around items-center overflow-x-auto gap-1 z-50 border-t-4 border-[#5d4037] custom-scroll">
         {[
           { m: GameMode.MENU, icon: <Library />, label: '主頁' },
           { m: GameMode.REVIEW, icon: <BookOpen />, label: '清單' },
@@ -98,14 +133,15 @@ const App: React.FC = () => {
           { m: GameMode.BUBBLE_POP, icon: <Waves />, label: '泡泡' },
           { m: GameMode.WORD_SEARCH, icon: <Gamepad2 />, label: '搜索' },
           { m: GameMode.MEMORY, icon: <Brain />, label: '記憶' },
+          { m: GameMode.TUG_OF_WAR, icon: <Swords />, label: '拔河' },
         ].map(item => (
           <button 
             key={item.m}
             onClick={() => setMode(item.m)}
-            className={`flex flex-col items-center p-3 min-w-[64px] rounded-2xl transition-all ${mode === item.m ? 'bg-amber-100 text-[#5d4037] scale-110' : 'text-slate-400 hover:text-[#5d4037]'}`}
+            className={`flex flex-col items-center p-2 min-w-[56px] rounded-xl transition-all ${mode === item.m ? 'bg-amber-100 text-[#5d4037] scale-105' : 'text-slate-400 hover:text-[#5d4037]'}`}
           >
-            {React.cloneElement(item.icon as React.ReactElement, { size: 22 })}
-            <span className="text-[11px] font-bold mt-1 tracking-tighter">{item.label}</span>
+            {React.cloneElement(item.icon as React.ReactElement, { size: 18 })}
+            <span className="text-[9px] font-bold mt-1 tracking-tighter">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -113,23 +149,170 @@ const App: React.FC = () => {
   );
 };
 
+/* --- TUG OF WAR GAME - UPDATED TO HORIZONTAL SPLIT --- */
+const TugOfWarGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+  const [step, setStep] = useState(0);
+  const [ropePosition, setRopePosition] = useState(50); // 0 (left) to 100 (right), 50 center
+  const [winner, setWinner] = useState<number | null>(null);
+  const [turnOver, setTurnOver] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const currentWord = useMemo(() => WORDS[step % WORDS.length], [step]);
+  const options = useMemo(() => {
+    const wrong = WORDS.filter(w => w.id !== currentWord.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+    return [currentWord, ...wrong].sort(() => 0.5 - Math.random());
+  }, [currentWord]);
+
+  const handleAnswer = (playerId: number, word: Word) => {
+    if (turnOver) return;
+
+    if (word.id === currentWord.id) {
+      playCorrectSound();
+      setTurnOver(true);
+      setFeedback(playerId === 1 ? 'A wins!' : 'B wins!');
+      // Player 1 (Left) pulls toward 0, Player 2 (Right) pulls toward 100
+      setRopePosition(prev => playerId === 1 ? Math.max(0, prev - 12) : Math.min(100, prev + 12));
+      
+      setTimeout(() => {
+        if (step < 4) {
+          setStep(prev => prev + 1);
+          setTurnOver(false);
+          setFeedback(null);
+        } else {
+          // Check final position after 5 rounds
+          setWinner(ropePosition < 50 ? 1 : ropePosition > 50 ? 2 : 0);
+        }
+      }, 1500);
+    } else {
+      playWrongSound();
+    }
+  };
+
+  if (winner !== null) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white/80 rounded-[3rem] border-4 border-[#5d4037] crayon-shadow m-4">
+        <h2 className="text-6xl font-black text-[#5d4037] mb-8">Game Over!</h2>
+        <div className="text-9xl mb-12 floating">🏆</div>
+        <p className="text-4xl font-black mb-12">
+          {winner === 1 ? "🎉 Player A is the Champion!" : winner === 2 ? "🎉 Player B is the Champion!" : "It's a Draw! 🤝"}
+        </p>
+        <button onClick={onComplete} className="hand-drawn-btn bg-[#8bc34a] text-white px-12 py-5 text-3xl font-black shadow-[6px_6px_0px_#5d4037]">
+          回主選單
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-[80vh] w-full max-w-7xl mx-auto gap-4 p-2 relative">
+      {/* Question Banner */}
+      <div className="w-full flex justify-center z-20">
+        <div className="bg-white px-12 py-4 crayon-border border-[#5d4037] shadow-xl rotate-[-1deg] flex flex-col items-center">
+           <span className="text-lg font-bold text-[#8d6e63] mb-1">Round {step + 1} / 5</span>
+           <h3 className="text-6xl font-black text-[#5d4037]">{currentWord.chinese}</h3>
+        </div>
+      </div>
+
+      {/* Horizontal Split */}
+      <div className="flex-1 flex gap-4 overflow-hidden">
+        {/* Player 1 Left */}
+        <div className="flex-1 bg-sky-50 rounded-[3rem] border-4 border-[#5d4037] p-6 flex flex-col items-center justify-center gap-6 relative">
+          <span className="absolute top-4 left-6 text-2xl font-black text-sky-700 bg-white px-4 rounded-full border-2 border-[#5d4037]">Player A</span>
+          <div className="grid grid-cols-1 gap-4 w-full">
+            {options.map(opt => (
+              <button 
+                key={opt.id} 
+                onClick={() => handleAnswer(1, opt)}
+                className="hand-drawn-btn bg-white py-6 text-3xl font-black text-[#01579b] shadow-[4px_4px_0px_#5d4037] active:shadow-none hover:bg-sky-100 disabled:opacity-50"
+                disabled={turnOver}
+              >
+                {opt.english}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Player 2 Right */}
+        <div className="flex-1 bg-pink-50 rounded-[3rem] border-4 border-[#5d4037] p-6 flex flex-col items-center justify-center gap-6 relative">
+          <span className="absolute top-4 right-6 text-2xl font-black text-pink-700 bg-white px-4 rounded-full border-2 border-[#5d4037]">Player B</span>
+          <div className="grid grid-cols-1 gap-4 w-full">
+            {options.map(opt => (
+              <button 
+                key={opt.id} 
+                onClick={() => handleAnswer(2, opt)}
+                className="hand-drawn-btn bg-white py-6 text-3xl font-black text-[#ad1457] shadow-[4px_4px_0px_#5d4037] active:shadow-none hover:bg-pink-100 disabled:opacity-50"
+                disabled={turnOver}
+              >
+                {opt.english}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tug of War Rope Bottom */}
+      <div className="h-32 bg-[#fff9c4] crayon-border border-[#5d4037] relative flex items-center shadow-inner overflow-hidden">
+        {/* Rope Background Line */}
+        <div className="absolute left-10 right-10 h-3 bg-amber-900 rounded-full border-2 border-[#5d4037] opacity-60"></div>
+        
+        {/* The Actual Rope Visual (longer) */}
+        <div 
+           className="absolute h-2 bg-amber-700 w-[200%] transition-all duration-700 ease-out"
+           style={{ transform: `translateX(calc(${50 - ropePosition}%))` }}
+        ></div>
+
+        {/* Rope Center Marker */}
+        <div className="absolute left-1/2 -translate-x-1/2 h-full w-1 border-x-2 border-dashed border-red-500 opacity-30"></div>
+
+        {/* Tugger A (Left) */}
+        <div className="absolute left-10 flex items-center gap-2">
+           <div className="text-6xl floating">🐘</div>
+           <div className="text-xl font-black text-sky-800">Team A</div>
+        </div>
+
+        {/* Tugger B (Right) */}
+        <div className="absolute right-10 flex items-center gap-2">
+           <div className="text-xl font-black text-pink-800">Team B</div>
+           <div className="text-6xl floating" style={{animationDelay: '1s'}}>🦖</div>
+        </div>
+
+        {/* Moving Flag (The tug point) */}
+        <div 
+          className="absolute h-20 w-16 transition-all duration-700 ease-out flex flex-col items-center justify-center z-10" 
+          style={{ left: `calc(${ropePosition}% - 32px)` }}
+        >
+          <div className="w-2 h-10 bg-red-600 border-2 border-[#5d4037] relative shadow-lg">
+            <div className="absolute top-0 left-2 w-10 h-6 bg-red-400 border-2 border-[#5d4037] skew-x-12 rotate-[-10deg]"></div>
+          </div>
+          {feedback && (
+             <div className="absolute top-[-40px] bg-white border-2 border-[#5d4037] px-3 py-1 rounded-full text-sm font-black whitespace-nowrap animate-bounce shadow-md">
+                {feedback}
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* --- SUB COMPONENTS --- */
 
 const MainMenu: React.FC<{ setMode: (m: GameMode) => void }> = ({ setMode }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-    <div className="bg-[#fff9c4] p-12 crayon-border border-[#5d4037] flex flex-col items-center text-center crayon-shadow group rotate-[-1deg]">
-      <div className="text-9xl mb-6 floating">🎨</div>
-      <h2 className="text-5xl font-black mb-6 text-[#5d4037]">小小畫家課！</h2>
-      <p className="text-[#795548] mb-10 font-bold text-2xl leading-snug">拿起你的彩色鉛筆，<br/>跟著小熊一起畫出英語單詞！</p>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-2">
+    <div className="bg-[#fff9c4] p-8 md:p-12 crayon-border border-[#5d4037] flex flex-col items-center text-center crayon-shadow group rotate-[-1deg]">
+      <div className="text-7xl md:text-9xl mb-4 md:mb-6 floating">🎨</div>
+      <h2 className="text-4xl md:text-5xl font-black mb-4 md:mb-6 text-[#5d4037]">小小畫家課！</h2>
+      <p className="text-[#795548] mb-8 md:mb-10 font-bold text-xl md:text-2xl leading-snug">拿起你的彩色鉛筆，<br/>跟著小熊一起學英語！</p>
       <button 
         onClick={() => setMode(GameMode.REVIEW)}
-        className="hand-drawn-btn bg-[#ffa726] text-white px-12 py-5 font-black text-3xl shadow-[5px_5px_0px_#5d4037] active:shadow-none active:translate-y-1"
+        className="hand-drawn-btn bg-[#ffa726] text-white px-10 py-4 md:px-12 md:py-5 font-black text-2xl md:text-3xl shadow-[5px_5px_0px_#5d4037] active:shadow-none active:translate-y-1"
       >
         開始吧！ 🖍️
       </button>
     </div>
-    <div className="grid grid-cols-2 gap-5">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
       {[
+        { m: GameMode.TUG_OF_WAR, label: '雙人拔河', icon: '⚔️', color: '#fff9c4' },
         { m: GameMode.DETECTIVE, label: '表情偵探', icon: '🔎', color: '#e1f5fe' },
         { m: GameMode.MATCHING, label: '魔法配對', icon: '🧩', color: '#f3e5f5' },
         { m: GameMode.SPELLING, label: '勤勞蜜蜂', icon: '🐝', color: '#fff3e0' },
@@ -141,10 +324,10 @@ const MainMenu: React.FC<{ setMode: (m: GameMode) => void }> = ({ setMode }) => 
           key={game.m}
           onClick={() => setMode(game.m)}
           style={{ backgroundColor: game.color, transform: `rotate(${(i % 2 === 0 ? 1 : -1) * (i + 1)}deg)` }}
-          className="hand-drawn-btn p-6 shadow-[4px_4px_0px_#5d4037] flex flex-col items-center border-[#5d4037]"
+          className="hand-drawn-btn p-4 md:p-6 shadow-[4px_4px_0px_#5d4037] flex flex-col items-center border-[#5d4037]"
         >
-          <span className="text-5xl mb-3">{game.icon}</span>
-          <span className="font-black text-[#5d4037] text-xl leading-none">{game.label}</span>
+          <span className="text-4xl md:text-5xl mb-2 md:mb-3">{game.icon}</span>
+          <span className="font-black text-[#5d4037] text-base md:text-xl leading-none text-center">{game.label}</span>
         </button>
       ))}
     </div>
@@ -152,32 +335,32 @@ const MainMenu: React.FC<{ setMode: (m: GameMode) => void }> = ({ setMode }) => 
 );
 
 const WordReview: React.FC<{ setMode: (m: GameMode) => void }> = ({ setMode }) => (
-  <div className="bg-white p-10 mb-8 crayon-border border-[#5d4037] crayon-shadow relative overflow-hidden">
+  <div className="bg-white p-6 md:p-10 mb-8 crayon-border border-[#5d4037] crayon-shadow relative overflow-hidden">
     <div className="absolute top-[-20px] left-[-20px] w-20 h-20 bg-amber-200 rounded-full opacity-50 blur-xl"></div>
-    <div className="flex items-center gap-6 mb-10 border-b-4 border-dashed border-[#d7ccc8] pb-6">
-      <span className="text-6xl floating">🎒</span>
+    <div className="flex items-center gap-6 mb-8 md:mb-10 border-b-4 border-dashed border-[#d7ccc8] pb-6">
+      <span className="text-5xl md:text-6xl floating">🎒</span>
       <div>
-        <h2 className="text-4xl font-black text-[#5d4037]">第四課：故事冒險</h2>
-        <p className="text-[#8d6e63] font-bold text-xl">Vocabulary Master List</p>
+        <h2 className="text-3xl md:text-4xl font-black text-[#5d4037]">第四課：故事冒險</h2>
+        <p className="text-[#8d6e63] font-bold text-lg md:text-xl">Vocabulary List</p>
       </div>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
       {WORDS.map(word => (
-        <div key={word.id} className="flex items-center gap-5 p-5 crayon-border border-[#5d4037]/20 bg-[#fffcf5] group hover:bg-[#fff9c4] transition-colors rotate-[0.5deg]">
-          <span className="text-5xl group-hover:scale-125 transition-transform duration-300 drop-shadow-sm">{word.emoji}</span>
+        <div key={word.id} className="flex items-center gap-4 md:gap-5 p-4 md:p-5 crayon-border border-[#5d4037]/20 bg-[#fffcf5] group hover:bg-[#fff9c4] transition-colors rotate-[0.5deg]">
+          <span className="text-4xl md:text-5xl group-hover:scale-125 transition-transform duration-300 drop-shadow-sm">{word.emoji}</span>
           <div className="flex-1">
-            <h3 className="text-2xl font-black text-[#5d4037]">{word.english}</h3>
-            <p className="text-[#8d6e63] font-mono text-sm italic">{word.pronunciation}</p>
+            <h3 className="text-xl md:text-2xl font-black text-[#5d4037]">{word.english}</h3>
+            <p className="text-[#8d6e63] font-mono text-xs md:text-sm italic">{word.pronunciation}</p>
           </div>
-          <span className="bg-white px-5 py-2 crayon-border border-[#d7ccc8] text-[#795548] font-black text-xl">{word.chinese}</span>
+          <span className="bg-white px-4 py-1 md:px-5 md:py-2 crayon-border border-[#d7ccc8] text-[#795548] font-black text-lg md:text-xl">{word.chinese}</span>
         </div>
       ))}
     </div>
     <button 
       onClick={() => setMode(GameMode.MENU)}
-      className="w-full mt-12 hand-drawn-btn bg-[#8bc34a] text-white py-6 font-black text-3xl shadow-[6px_6px_0px_#33691e]"
+      className="w-full mt-10 md:mt-12 hand-drawn-btn bg-[#8bc34a] text-white py-5 md:py-6 font-black text-2xl md:text-3xl shadow-[6px_6px_0px_#33691e]"
     >
-      準備好開始遊戲！ 🎨
+      我也準備好遊戲！ 🎨
     </button>
   </div>
 );
@@ -188,9 +371,9 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const current = WORDS[index];
 
   return (
-    <div className="bg-[#fce4ec] min-h-[600px] p-10 crayon-border border-[#5d4037] mb-8 crayon-shadow rotate-[0.2deg]">
-      <div className="flex justify-between items-center mb-10">
-        <h2 className="text-4xl font-black text-[#ad1457] flex items-center gap-3">
+    <div className="bg-[#fce4ec] min-h-[600px] p-6 md:p-10 crayon-border border-[#5d4037] mb-8 crayon-shadow rotate-[0.2deg]">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10">
+        <h2 className="text-3xl md:text-4xl font-black text-[#ad1457] flex items-center gap-3">
           <Library className="text-[#ec407a]" size={32} /> 單詞學習日記
         </h2>
         <div className="flex bg-white rounded-full p-2 border-2 border-[#5d4037]">
@@ -201,7 +384,7 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <button 
               key={v.id}
               onClick={() => setView(v.id as any)}
-              className={`px-8 py-2 rounded-full text-lg font-black transition flex items-center gap-2 ${view === v.id ? 'bg-[#ec407a] text-white' : 'text-slate-400'}`}
+              className={`px-6 md:px-8 py-2 rounded-full text-base md:text-lg font-black transition flex items-center gap-2 ${view === v.id ? 'bg-[#ec407a] text-white' : 'text-slate-400'}`}
             >
               {v.label}
             </button>
@@ -210,8 +393,8 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       </div>
 
       {view === 'LIST' && (
-        <div className="bg-white rounded-[2rem] overflow-hidden border-4 border-[#5d4037] crayon-shadow">
-          <div className="bg-[#fce4ec] p-5 grid grid-cols-3 font-black text-[#ad1457] border-b-4 border-[#5d4037] text-lg uppercase">
+        <div className="bg-white rounded-[2rem] overflow-hidden border-4 border-[#5d4037] crayon-shadow overflow-x-auto">
+          <div className="bg-[#fce4ec] p-5 grid grid-cols-3 font-black text-[#ad1457] border-b-4 border-[#5d4037] text-base md:text-lg uppercase">
             <span>英語單詞</span>
             <span className="text-center">中文含義</span>
             <span className="text-right">表情</span>
@@ -221,11 +404,11 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <button 
                 key={w.id}
                 onClick={() => { setIndex(i); setView('CARDS'); }}
-                className="w-full grid grid-cols-3 p-6 items-center hover:bg-[#fff9f0] transition-colors border-b-2 border-dashed border-[#f8bbd0] group"
+                className="w-full grid grid-cols-3 p-4 md:p-6 items-center hover:bg-[#fff9f0] transition-colors border-b-2 border-dashed border-[#f8bbd0] group"
               >
-                <span className="font-black text-left text-3xl text-[#ec407a] group-hover:translate-x-3 transition-transform">{w.english}</span>
-                <span className="text-[#795548] text-center font-black text-2xl">{w.chinese}</span>
-                <span className="text-4xl text-right">{w.emoji}</span>
+                <span className="font-black text-left text-2xl md:text-3xl text-[#ec407a] group-hover:translate-x-3 transition-transform">{w.english}</span>
+                <span className="text-[#795548] text-center font-black text-xl md:text-2xl">{w.chinese}</span>
+                <span className="text-3xl md:text-4xl text-right">{w.emoji}</span>
               </button>
             ))}
           </div>
@@ -234,17 +417,17 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       {view === 'CARDS' && (
         <div className="flex flex-col items-center gap-10">
-          <div className="w-full max-w-lg bg-white rounded-[3rem] p-12 shadow-xl relative border-4 border-[#5d4037] crayon-shadow rotate-[-1deg]">
-            <div className="text-center mb-12">
-              <span className="text-9xl mb-6 block drop-shadow-md floating">{current.emoji}</span>
-              <h3 className="text-7xl font-black text-[#ec407a] mb-4">{current.english}</h3>
-              <div className="bg-[#fce4ec] px-10 py-3 crayon-border border-[#5d4037] inline-block">
-                <span className="text-4xl font-black text-[#880e4f]">{current.chinese}</span>
+          <div className="w-full max-w-lg bg-white rounded-[3rem] p-8 md:p-12 shadow-xl relative border-4 border-[#5d4037] crayon-shadow rotate-[-1deg]">
+            <div className="text-center mb-10 md:mb-12">
+              <span className="text-8xl md:text-9xl mb-4 md:mb-6 block drop-shadow-md floating">{current.emoji}</span>
+              <h3 className="text-6xl md:text-7xl font-black text-[#ec407a] mb-4">{current.english}</h3>
+              <div className="bg-[#fce4ec] px-8 py-2 md:px-10 md:py-3 crayon-border border-[#5d4037] inline-block">
+                <span className="text-3xl md:text-4xl font-black text-[#880e4f]">{current.chinese}</span>
               </div>
-              <p className="text-2xl text-slate-300 mt-6 font-mono font-bold italic">{current.pronunciation}</p>
+              <p className="text-xl md:text-2xl text-slate-300 mt-6 font-mono font-bold italic">{current.pronunciation}</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {[
                 { label: '🗣️ 音節劃分', val: current.syllables, bg: '#e3f2fd', border: '#bbdefb' },
                 { label: '🧩 單詞拆解', val: current.breakdown, bg: '#f3e5f5', border: '#e1bee7' },
@@ -252,16 +435,16 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 { label: '🍭 趣味冷知識', val: current.funFact, bg: '#fffde7', border: '#fff9c4' },
                 { label: '📚 知識掃描', val: current.realityInfo, bg: '#f1f8e9', border: '#dcedc8' }
               ].map((item, i) => (
-                <div key={i} style={{ backgroundColor: item.bg, borderColor: item.border }} className="p-5 rounded-[1.5rem] border-2 border-dashed">
-                  <p className="text-xs font-black text-[#5d4037]/60 mb-1 uppercase tracking-widest">{item.label}</p>
-                  <p className="text-xl font-bold text-[#5d4037] leading-relaxed">{item.val}</p>
+                <div key={i} style={{ backgroundColor: item.bg, borderColor: item.border }} className="p-4 md:p-5 rounded-[1.5rem] border-2 border-dashed">
+                  <p className="text-[10px] md:text-xs font-black text-[#5d4037]/60 mb-1 uppercase tracking-widest">{item.label}</p>
+                  <p className="text-lg md:text-xl font-bold text-[#5d4037] leading-relaxed">{item.val}</p>
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-6 mt-12">
-               <button onClick={() => setIndex(prev => (prev > 0 ? prev - 1 : WORDS.length - 1))} className="flex-1 hand-drawn-btn bg-white py-5 text-[#ec407a] border-[#5d4037] font-black text-2xl shadow-[4px_4px_0px_#5d4037]">上一個</button>
-               <button onClick={() => setIndex(prev => (prev < WORDS.length - 1 ? prev + 1 : 0))} className="flex-1 hand-drawn-btn bg-[#ec407a] py-5 text-white border-[#5d4037] font-black text-2xl shadow-[4px_4px_0px_#880e4f]">下一個</button>
+            <div className="flex gap-4 md:gap-6 mt-10 md:mt-12">
+               <button onClick={() => setIndex(prev => (prev > 0 ? prev - 1 : WORDS.length - 1))} className="flex-1 hand-drawn-btn bg-white py-4 md:py-5 text-[#ec407a] border-[#5d4037] font-black text-xl md:text-2xl shadow-[4px_4px_0px_#5d4037]">上一個</button>
+               <button onClick={() => setIndex(prev => (prev < WORDS.length - 1 ? prev + 1 : 0))} className="flex-1 hand-drawn-btn bg-[#ec407a] py-4 md:py-5 text-white border-[#5d4037] font-black text-xl md:text-2xl shadow-[4px_4px_0px_#880e4f]">下一個</button>
             </div>
           </div>
         </div>
@@ -270,7 +453,7 @@ const DiaryReview: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   );
 };
 
-/* WORD SEARCH GAME - Final Crayon Redesign with Auto-find & Lowercase */
+/* WORD SEARCH GAME */
 const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [round, setRound] = useState(0);
   const WORDS_PER_ROUND = 5;
@@ -346,11 +529,15 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
       }
       const rev = word.split('').reverse().join('');
       if (targetWords.includes(word) && !foundWords.includes(word)) {
+        playCorrectSound();
         setFoundWords(prev => [...prev, word]);
         setFoundCells(prev => new Set([...prev, ...cells]));
       } else if (targetWords.includes(rev) && !foundWords.includes(rev)) {
+        playCorrectSound();
         setFoundWords(prev => [...prev, rev]);
         setFoundCells(prev => new Set([...prev, ...cells]));
+      } else {
+        playWrongSound();
       }
       setSelection(null);
     }
@@ -358,6 +545,7 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
 
   const autoFindWord = (w: string) => {
     if (foundWords.includes(w)) return;
+    playCorrectSound();
     const cells = wordPositions.current[w];
     if (cells) {
       setFoundWords(prev => [...prev, w]);
@@ -376,15 +564,15 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
   }, [foundWords, targetWords, round, totalRounds, onComplete]);
 
   return (
-    <div className="bg-[#f1f8e9] p-12 rounded-[3rem] border-4 border-[#5d4037] mb-8 shadow-[8px_8px_0px_#a5d6a7] rotate-[-0.5deg]">
-      <div className="flex justify-between items-center mb-10">
-        <h2 className="text-5xl font-black text-[#2e7d32]">秘密搜索遊戲 🔍</h2>
-        <div className="bg-white px-8 py-3 crayon-border border-[#5d4037] font-black text-[#2e7d32] text-2xl">
+    <div className="bg-[#f1f8e9] p-6 md:p-12 rounded-[3rem] border-4 border-[#5d4037] mb-8 shadow-[8px_8px_0px_#a5d6a7] rotate-[-0.5deg]">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10">
+        <h2 className="text-4xl md:text-5xl font-black text-[#2e7d32]">秘密搜索遊戲 🔍</h2>
+        <div className="bg-white px-6 md:px-8 py-2 md:py-3 crayon-border border-[#5d4037] font-black text-[#2e7d32] text-xl md:text-2xl">
           第 {round + 1} / {totalRounds} 關
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        <div className="bg-white p-8 rounded-[3rem] shadow-xl inline-block mx-auto border-4 border-[#5d4037]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+        <div className="bg-white p-4 md:p-8 rounded-[3rem] shadow-xl inline-block mx-auto border-4 border-[#5d4037]">
           <div className="grid grid-cols-10 gap-1 md:gap-3">
             {grid.map((row, r) => row.map((char, c) => {
               const isFound = foundCells.has(`${r}-${c}`);
@@ -393,7 +581,7 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
                 <button 
                   key={`${r}-${c}`}
                   onClick={() => handleCellClick(r, c)}
-                  className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center font-black text-2xl md:text-3xl rounded-xl transition-all transform active:scale-90 ${isFound ? 'bg-[#c8e6c9] text-[#2e7d32] border-2 border-[#5d4037]/30 scale-105 rotate-3' : isSelected ? 'bg-[#fff176] text-[#5d4037] border-2 border-[#5d4037] animate-pulse' : 'bg-[#f1f8e9] text-[#5d4037] border-2 border-transparent hover:border-[#5d4037]/20 hover:bg-[#dcedc8]'}`}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 md:w-12 md:h-12 flex items-center justify-center font-black text-lg md:text-3xl rounded-lg md:rounded-xl transition-all transform active:scale-90 ${isFound ? 'bg-[#c8e6c9] text-[#2e7d32] border-2 border-[#5d4037]/30 scale-105 rotate-3' : isSelected ? 'bg-[#fff176] text-[#5d4037] border-2 border-[#5d4037] animate-pulse' : 'bg-[#f1f8e9] text-[#5d4037] border-2 border-transparent hover:border-[#5d4037]/20 hover:bg-[#dcedc8]'}`}
                 >
                   {char}
                 </button>
@@ -401,9 +589,9 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
             }))}
           </div>
         </div>
-        <div className="bg-white p-10 rounded-[3rem] border-4 border-[#5d4037] crayon-shadow">
-          <h3 className="text-3xl font-black mb-8 text-[#2e7d32] border-b-4 border-dashed border-[#dcedc8] pb-4">請在畫板中點出：</h3>
-          <div className="grid grid-cols-1 gap-5">
+        <div className="bg-white p-6 md:p-10 rounded-[3rem] border-4 border-[#5d4037] crayon-shadow">
+          <h3 className="text-2xl md:text-3xl font-black mb-6 md:mb-8 text-[#2e7d32] border-b-4 border-dashed border-[#dcedc8] pb-4">請在畫板中點出：</h3>
+          <div className="grid grid-cols-1 gap-3 md:gap-5">
             {targetWords.map(w => {
               const isFound = foundWords.includes(w);
               const wordObj = WORDS.find(item => item.english.toLowerCase() === w);
@@ -411,20 +599,13 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
                 <button 
                   key={w} 
                   onClick={() => autoFindWord(w)}
-                  className={`px-8 py-4 rounded-[1.5rem] font-black text-3xl transition-all border-4 flex justify-between items-center group relative ${isFound ? 'bg-[#81c784] text-white border-[#2e7d32] line-through opacity-50 shadow-inner translate-x-1' : 'bg-white text-[#2e7d32] border-[#5d4037] shadow-[5px_5px_0px_#5d4037] hover:translate-x-1 hover:translate-y-1 hover:shadow-none'}`}
+                  className={`px-6 py-3 md:px-8 md:py-4 rounded-[1.5rem] font-black text-xl md:text-3xl transition-all border-4 flex justify-between items-center group relative ${isFound ? 'bg-[#81c784] text-white border-[#2e7d32] line-through opacity-50 shadow-inner translate-x-1' : 'bg-white text-[#2e7d32] border-[#5d4037] shadow-[5px_5px_0px_#5d4037] hover:translate-x-1 hover:translate-y-1 hover:shadow-none'}`}
                 >
                   <span className="group-hover:translate-x-2 transition-transform">{w}</span>
-                  <span className="text-lg font-bold opacity-80">{wordObj?.chinese}</span>
-                  {isFound && <div className="absolute inset-0 bg-white/10 flex items-center justify-center">✅</div>}
+                  <span className="text-base md:text-lg font-bold opacity-80">{wordObj?.chinese}</span>
                 </button>
               );
             })}
-          </div>
-          <div className="mt-12 p-6 bg-amber-50 rounded-2xl border-4 border-dashed border-[#5d4037]/20 text-center">
-             <p className="font-bold text-[#5d4037] text-xl italic flex items-center justify-center gap-2">
-               <Star size={24} className="text-amber-400 fill-amber-400" /> 
-               小畫家提示：點擊列表中的單詞，<br/>我會直接幫你標出來喔！
-             </p>
           </div>
         </div>
       </div>
@@ -434,32 +615,34 @@ const WordSearchGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
 
 const EmojiDetective: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
-  const currentWord = WORDS[step];
+  const currentWord = WORDS[step % WORDS.length];
   const options = useMemo(() => {
     const wrong = WORDS.filter(w => w.id !== currentWord.id).sort(() => 0.5 - Math.random()).slice(0, 3);
     return [currentWord, ...wrong].sort(() => 0.5 - Math.random());
-  }, [step]);
+  }, [currentWord]);
 
   const handleChoice = (word: Word) => {
     if (word.id === currentWord.id) {
-      if (step < WORDS.length - 1) setStep(step + 1);
+      playCorrectSound();
+      if (step < 9) setStep(step + 1);
       else onComplete();
+    } else {
+      playWrongSound();
     }
   };
 
   return (
-    <div className="bg-[#e1f5fe] p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#81d4fa] rotate-[1deg]">
-      <h2 className="text-5xl font-black text-[#01579b] mb-10">小小偵探事務所 🔎</h2>
-      <div className="bg-white p-14 rounded-[3.5rem] shadow-xl mb-12 relative border-4 border-[#5d4037] crayon-shadow">
-        <p className="text-[12rem] mb-8 drop-shadow-xl leading-none floating">{currentWord.emoji}</p>
-        <div className="bg-[#b3e5fc] px-12 py-4 rounded-full border-4 border-[#5d4037] inline-block">
-          <p className="text-5xl font-black text-[#01579b]">{currentWord.chinese}</p>
+    <div className="bg-[#e1f5fe] p-8 md:p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#81d4fa] rotate-[1deg]">
+      <h2 className="text-4xl md:text-5xl font-black text-[#01579b] mb-10">小小偵探事務所 🔎</h2>
+      <div className="bg-white p-8 md:p-14 rounded-[3.5rem] shadow-xl mb-10 md:mb-12 relative border-4 border-[#5d4037] crayon-shadow">
+        <p className="text-[8rem] md:text-[12rem] mb-6 md:mb-8 drop-shadow-xl leading-none floating">{currentWord.emoji}</p>
+        <div className="bg-[#b3e5fc] px-10 py-3 md:px-12 md:py-4 rounded-full border-4 border-[#5d4037] inline-block">
+          <p className="text-4xl md:text-5xl font-black text-[#01579b]">{currentWord.chinese}</p>
         </div>
-        <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-sm mt-8">找出對應的英語單詞！</p>
       </div>
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-2 gap-4 md:gap-8">
         {options.map(opt => (
-          <button key={opt.id} onClick={() => handleChoice(opt)} className="hand-drawn-btn bg-white py-12 font-black text-5xl text-[#01579b] border-[#5d4037] shadow-[6px_6px_0px_#5d4037]">
+          <button key={opt.id} onClick={() => handleChoice(opt)} className="hand-drawn-btn bg-white py-8 md:py-12 font-black text-3xl md:text-5xl text-[#01579b] border-[#5d4037] shadow-[6px_6px_0px_#5d4037]">
             {opt.english}
           </button>
         ))}
@@ -478,7 +661,12 @@ const MatchingGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
   useEffect(() => {
     if (selectedEng !== null && selectedChi !== null) {
-      if (selectedEng === selectedChi) setMatches(prev => [...prev, selectedEng]);
+      if (selectedEng === selectedChi) {
+        playCorrectSound();
+        setMatches(prev => [...prev, selectedEng]);
+      } else {
+        playWrongSound();
+      }
       setTimeout(() => { setSelectedEng(null); setSelectedChi(null); }, 500);
     }
   }, [selectedEng, selectedChi]);
@@ -493,24 +681,24 @@ const MatchingGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   }, [matches, round, onComplete]);
 
   return (
-    <div className="bg-[#f3e5f5] p-12 rounded-[4rem] border-4 border-[#5d4037] mb-8 shadow-[8px_8px_0px_#ce93d8] rotate-[-1deg]">
-      <h2 className="text-5xl font-black text-[#4a148c] text-center mb-12">神奇單詞連連看 🧩</h2>
-      <div className="grid grid-cols-2 gap-16">
-        <div className="space-y-8">
-          <p className="text-center font-black text-[#7b1fa2] text-2xl mb-6">English 🎒</p>
+    <div className="bg-[#f3e5f5] p-8 md:p-12 rounded-[4rem] border-4 border-[#5d4037] mb-8 shadow-[8px_8px_0px_#ce93d8] rotate-[-1deg]">
+      <h2 className="text-4xl md:text-5xl font-black text-[#4a148c] text-center mb-12">神奇單詞連連看 🧩</h2>
+      <div className="grid grid-cols-2 gap-8 md:gap-16">
+        <div className="space-y-4 md:space-y-8">
+          <p className="text-center font-black text-[#7b1fa2] text-xl md:text-2xl mb-4 md:mb-6">English 🎒</p>
           {currentGroup.map(w => (
             <button key={w.id} disabled={matches.includes(w.id)} onClick={() => setSelectedEng(w.id)}
-              className={`w-full py-10 px-8 hand-drawn-btn font-black text-3xl transition-all ${matches.includes(w.id) ? 'bg-[#c8e6c9] text-[#2e7d32] opacity-40 shadow-none' : selectedEng === w.id ? 'bg-[#7b1fa2] text-white shadow-none translate-y-2' : 'bg-white text-[#4a148c] shadow-[6px_6px_0px_#5d4037]'}`}
+              className={`w-full py-6 md:py-10 px-6 md:px-8 hand-drawn-btn font-black text-2xl md:text-3xl transition-all ${matches.includes(w.id) ? 'bg-[#c8e6c9] text-[#2e7d32] opacity-40 shadow-none' : selectedEng === w.id ? 'bg-[#7b1fa2] text-white shadow-none translate-y-2' : 'bg-white text-[#4a148c] shadow-[6px_6px_0px_#5d4037]'}`}
             >
               {w.english}
             </button>
           ))}
         </div>
-        <div className="space-y-8">
-          <p className="text-center font-black text-[#7b1fa2] text-2xl mb-6">中文 🎨</p>
+        <div className="space-y-4 md:space-y-8">
+          <p className="text-center font-black text-[#7b1fa2] text-xl md:text-2xl mb-4 md:mb-6">中文 🎨</p>
           {shuffledChi.map(w => (
             <button key={w.id} disabled={matches.includes(w.id)} onClick={() => setSelectedChi(w.id)}
-              className={`w-full py-10 px-8 hand-drawn-btn font-black text-3xl transition-all ${matches.includes(w.id) ? 'bg-[#c8e6c9] text-[#2e7d32] opacity-40 shadow-none' : selectedChi === w.id ? 'bg-[#7b1fa2] text-white shadow-none translate-y-2' : 'bg-white text-[#4a148c] shadow-[6px_6px_0px_#5d4037]'}`}
+              className={`w-full py-6 md:py-10 px-6 md:px-8 hand-drawn-btn font-black text-2xl md:text-3xl transition-all ${matches.includes(w.id) ? 'bg-[#c8e6c9] text-[#2e7d32] opacity-40 shadow-none' : selectedChi === w.id ? 'bg-[#7b1fa2] text-white shadow-none translate-y-2' : 'bg-white text-[#4a148c] shadow-[6px_6px_0px_#5d4037]'}`}
             >
               {w.chinese}
             </button>
@@ -523,82 +711,85 @@ const MatchingGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
 const SpellingBee: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
-  const currentWord = WORDS[step];
+  const currentWord = WORDS[step % WORDS.length];
   const [input, setInput] = useState<{ char: string; key: string }[]>([]);
   const targetLower = currentWord.english.toLowerCase();
   const letters = useMemo(() => targetLower.split('').map((c, i) => ({ char: c, key: `${c}-${i}` })).sort(() => 0.5 - Math.random()), [targetLower]);
 
   useEffect(() => {
     if (input.map(i => i.char).join('') === targetLower) {
+      playCorrectSound();
       setTimeout(() => {
-        if (step < WORDS.length - 1) { setStep(step + 1); setInput([]); }
+        if (step < 9) { setStep(step + 1); setInput([]); }
         else onComplete();
       }, 600);
     }
   }, [input, targetLower, step, onComplete]);
 
   return (
-    <div className="bg-[#fff3e0] p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#ffcc80] rotate-[0.5deg]">
-      <h2 className="text-5xl font-black text-[#e65100] mb-12">拼寫大冒險 🐝</h2>
-      <div className="bg-white inline-block px-14 py-6 rounded-[3rem] shadow-lg border-4 border-[#5d4037] mb-14">
-        <p className="text-7xl font-black text-[#e65100] leading-none">{currentWord.chinese}</p>
+    <div className="bg-[#fff3e0] p-8 md:p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#ffcc80] rotate-[0.5deg]">
+      <h2 className="text-4xl md:text-5xl font-black text-[#e65100] mb-12">拼寫大冒險 🐝</h2>
+      <div className="bg-white inline-block px-10 py-4 md:px-14 md:py-6 rounded-[3rem] shadow-lg border-4 border-[#5d4037] mb-12 md:mb-14">
+        <p className="text-5xl md:text-7xl font-black text-[#e65100] leading-none">{currentWord.chinese}</p>
       </div>
-      <div className="flex flex-wrap justify-center gap-6 mb-20 min-h-[140px] items-center">
+      <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-12 md:mb-20 min-h-[100px] md:min-h-[140px] items-center">
         {targetLower.split('').map((_, i) => (
           <div key={i} onClick={() => i < input.length && setInput(input.slice(0, i))} 
-            className={`w-16 h-24 rounded-3xl border-4 border-[#5d4037] flex items-center justify-center text-5xl font-black cursor-pointer transition-all ${input[i] ? 'bg-white text-[#e65100] scale-110 shadow-md rotate-[-2deg]' : 'bg-[#ffe0b2] border-dashed border-[#5d4037]/30'}`}
+            className={`w-12 h-16 md:w-16 md:h-24 rounded-2xl md:rounded-3xl border-4 border-[#5d4037] flex items-center justify-center text-3xl md:text-5xl font-black cursor-pointer transition-all ${input[i] ? 'bg-white text-[#e65100] scale-110 shadow-md rotate-[-2deg]' : 'bg-[#ffe0b2] border-dashed border-[#5d4037]/30'}`}
           >
             {input[i]?.char || ''}
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap justify-center gap-6">
+      <div className="flex flex-wrap justify-center gap-4 md:gap-6">
         {letters.map((l) => {
           const isUsed = input.some(item => item.key === l.key);
           return (
-            <button key={l.key} disabled={isUsed} onClick={() => setInput([...input, l])}
-              className={`w-20 h-20 hand-drawn-btn shadow-[4px_4px_0px_#5d4037] text-4xl font-black transition-all ${isUsed ? 'bg-slate-100 opacity-20 rotate-[-5deg]' : 'bg-white text-[#e65100] hover:scale-110'}`}
+            <button key={l.key} disabled={isUsed} onClick={() => {
+              setInput([...input, l]);
+            }}
+              className={`w-14 h-14 md:w-20 md:h-20 hand-drawn-btn shadow-[4px_4px_0px_#5d4037] text-2xl md:text-4xl font-black transition-all ${isUsed ? 'bg-slate-100 opacity-20 rotate-[-5deg]' : 'bg-white text-[#e65100] hover:scale-110'}`}
             >
               {l.char}
             </button>
           );
         })}
       </div>
-      <button onClick={() => setInput([])} className="mt-14 hand-drawn-btn bg-white px-8 py-3 text-slate-400 font-black flex items-center gap-2 mx-auto">
-        <RotateCcw size={18}/> 重填一次
-      </button>
     </div>
   );
 };
 
 const FillBlanks: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
-  const currentWord = WORDS[step];
+  const currentWord = WORDS[step % WORDS.length];
   const options = useMemo(() => {
     const wrong = WORDS.filter(w => w.id !== currentWord.id).sort(() => 0.5 - Math.random()).slice(0, 3);
     return [currentWord, ...wrong].sort(() => 0.5 - Math.random());
-  }, [step]);
+  }, [currentWord]);
 
   const handleChoice = (word: Word) => {
     if (word.id === currentWord.id) {
-      if (step < WORDS.length - 1) setStep(step + 1);
+      playCorrectSound();
+      if (step < 9) setStep(step + 1);
       else onComplete();
+    } else {
+      playWrongSound();
     }
   };
 
   return (
-    <div className="bg-[#e8eaf6] p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#c5cae9] rotate-[-0.5deg]">
-      <h2 className="text-5xl font-black text-[#1a237e] mb-12">故事大拼圖 ✍️</h2>
-      <div className="bg-white p-14 rounded-[3.5rem] shadow-xl mb-16 text-5xl leading-relaxed font-bold border-4 border-[#5d4037] crayon-shadow">
+    <div className="bg-[#e8eaf6] p-8 md:p-12 rounded-[4rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#c5cae9] rotate-[-0.5deg]">
+      <h2 className="text-4xl md:text-5xl font-black text-[#1a237e] mb-12">故事大拼圖 ✍️</h2>
+      <div className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-xl mb-12 md:mb-16 text-3xl md:text-5xl leading-relaxed font-bold border-4 border-[#5d4037] crayon-shadow">
         {currentWord.sentence.split(new RegExp(`(${currentWord.english})`, 'i')).map((part, i) => 
           part.toLowerCase() === currentWord.english.toLowerCase() ? (
-            <span key={i} className="inline-block w-48 border-b-8 border-dashed border-[#1a237e] mx-6 animate-pulse">&nbsp;</span>
+            <span key={i} className="inline-block w-36 md:w-48 border-b-8 border-dashed border-[#1a237e] mx-4 md:mx-6 animate-pulse">&nbsp;</span>
           ) : ( <span key={i} className="text-[#5d4037]">{part}</span> )
         )}
       </div>
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-2 gap-4 md:gap-8">
         {options.map(opt => (
-          <button key={opt.id} onClick={() => handleChoice(opt)} className="hand-drawn-btn bg-white py-12 font-black text-4xl text-[#1a237e] shadow-[6px_6px_0px_#5d4037] hover:bg-[#e8eaf6]">
+          <button key={opt.id} onClick={() => handleChoice(opt)} className="hand-drawn-btn bg-white py-8 md:py-12 font-black text-2xl md:text-4xl text-[#1a237e] shadow-[6px_6px_0px_#5d4037] hover:bg-[#e8eaf6]">
             {opt.english}
           </button>
         ))}
@@ -610,25 +801,28 @@ const FillBlanks: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 const BubblePop: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
   const [showFirework, setShowFirework] = useState(false);
-  const currentWord = WORDS[step];
+  const currentWord = WORDS[step % WORDS.length];
   const options = useMemo(() => {
     const wrong = WORDS.filter(w => w.id !== currentWord.id).sort(() => 0.5 - Math.random()).slice(0, 5);
     return [currentWord, ...wrong].sort(() => 0.5 - Math.random());
-  }, [step]);
+  }, [currentWord]);
 
   const handlePop = (word: Word) => {
     if (word.id === currentWord.id) {
+      playCorrectSound();
       setShowFirework(true);
       setTimeout(() => {
         setShowFirework(false);
-        if (step < WORDS.length - 1) setStep(step + 1);
+        if (step < 9) setStep(step + 1);
         else onComplete();
       }, 1200);
+    } else {
+      playWrongSound();
     }
   };
 
   return (
-    <div className="bg-[#e0f7fa] min-h-[650px] rounded-[4rem] p-12 border-4 border-[#5d4037] relative overflow-hidden flex flex-col items-center mb-8 shadow-[8px_8px_0px_#80deea]">
+    <div className="bg-[#e0f7fa] min-h-[600px] md:min-h-[650px] rounded-[4rem] p-8 md:p-12 border-4 border-[#5d4037] relative overflow-hidden flex flex-col items-center mb-8 shadow-[8px_8px_0px_#80deea]">
       {showFirework && (
         <>
           <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
@@ -637,23 +831,21 @@ const BubblePop: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             <div className="firework firework-animate" style={{ left: '50%', top: '20%' }}></div>
           </div>
           <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none animate-[bounce_0.5s_infinite]">
-            <div className="bg-white/90 px-12 py-6 crayon-border border-[#5d4037] shadow-[10px_10px_0px_#8bc34a]">
-              <p className="text-8xl font-black text-[#2e7d32] tracking-tighter drop-shadow-lg">Correct! 🌟</p>
+            <div className="bg-white/90 px-8 py-4 md:px-12 md:py-6 crayon-border border-[#5d4037] shadow-[10px_10px_0px_#8bc34a]">
+              <p className="text-6xl md:text-8xl font-black text-[#2e7d32] tracking-tighter drop-shadow-lg">Correct! 🌟</p>
             </div>
           </div>
         </>
       )}
-      <div className="absolute top-10 right-10 text-7xl opacity-30 floating">🎨</div>
-      <div className="absolute bottom-10 left-10 text-7xl opacity-30 floating" style={{animationDelay: '1s'}}>🖍️</div>
-      <h2 className="text-6xl font-black mb-12 text-[#006064] z-10">彩色泡泡糖 🫧</h2>
-      <div className="bg-white p-12 rounded-[3rem] mb-20 text-center z-10 border-4 border-[#5d4037] shadow-xl rotate-[1deg]">
-        <p className="text-7xl font-black mb-4 text-[#006064] leading-none">{currentWord.chinese}</p>
-        <p className="text-3xl text-[#00acc1] font-bold">戳破正確的英語泡泡！</p>
+      <h2 className="text-5xl md:text-6xl font-black mb-10 text-[#006064] z-10">彩色泡泡糖 🫧</h2>
+      <div className="bg-white p-8 md:p-12 rounded-[3rem] mb-12 md:mb-20 text-center z-10 border-4 border-[#5d4037] shadow-xl rotate-[1deg]">
+        <p className="text-5xl md:text-7xl font-black mb-4 text-[#006064] leading-none">{currentWord.chinese}</p>
+        <p className="text-2xl md:text-3xl text-[#00acc1] font-bold">戳破正確的英語泡泡！</p>
       </div>
-      <div className="grid grid-cols-3 grid-rows-2 gap-14 z-10">
+      <div className="grid grid-cols-3 grid-rows-2 gap-8 md:gap-14 z-10">
         {options.map((opt, i) => (
           <button key={`${step}-${i}`} onClick={() => handlePop(opt)}
-            className="w-44 h-44 rounded-full bg-white/90 border-4 border-[#5d4037] flex items-center justify-center text-4xl font-black shadow-2xl hover:scale-125 transition-all active:scale-95 floating"
+            className="w-28 h-28 md:w-44 md:h-44 rounded-full bg-white/90 border-4 border-[#5d4037] flex items-center justify-center text-xl md:text-4xl font-black shadow-2xl hover:scale-125 transition-all active:scale-95 floating"
             style={{ animationDelay: `${i * 0.4}s` }}
           >
             {opt.english}
@@ -666,10 +858,11 @@ const BubblePop: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
 const MemoryGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [phase, setPhase] = useState<'MEMORIZE' | 'SELECT'>('MEMORIZE');
-  const [timer, setTimer] = useState(10);
+  const [timer, setTimer] = useState(8);
   const [words, setWords] = useState<Word[]>([]);
   const [missingWord, setMissingWord] = useState<Word | null>(null);
   const [options, setOptions] = useState<Word[]>([]);
+  const [correctStreak, setCorrectStreak] = useState(0);
 
   const startRound = () => {
     const selected = [...WORDS].sort(() => 0.5 - Math.random()).slice(0, 6); setWords(selected);
@@ -677,42 +870,61 @@ const MemoryGame: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const others = WORDS.filter(w => !selected.includes(w)).sort(() => 0.5 - Math.random()).slice(0, 3);
     setOptions([...others, missing].sort(() => 0.5 - Math.random())); setPhase('MEMORIZE'); setTimer(8);
   };
+  
   useEffect(() => { startRound(); }, []);
+  
   useEffect(() => {
-    if (phase === 'MEMORIZE' && timer > 0) { const t = setTimeout(() => setTimer(timer - 1), 1000); return () => clearTimeout(t); }
+    if (phase === 'MEMORIZE' && timer > 0) { 
+      const t = setTimeout(() => setTimer(timer - 1), 1000); 
+      return () => clearTimeout(t); 
+    }
     else if (phase === 'MEMORIZE' && timer === 0) setPhase('SELECT');
   }, [timer, phase]);
 
+  const handleSelect = (opt: Word) => {
+    if (opt.id === missingWord?.id) {
+      playCorrectSound();
+      if (correctStreak >= 4) onComplete();
+      else {
+        setCorrectStreak(prev => prev + 1);
+        startRound();
+      }
+    } else {
+      playWrongSound();
+      startRound();
+    }
+  };
+
   return (
-    <div className="bg-[#fce4ec] p-14 rounded-[4.5rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#f8bbd0] rotate-[0.5deg]">
-      <h2 className="text-6xl font-black text-[#880e4f] mb-14 tracking-tight">大腦色彩畫家 🧠</h2>
+    <div className="bg-[#fce4ec] p-8 md:p-14 rounded-[4.5rem] border-4 border-[#5d4037] text-center mb-8 shadow-[8px_8px_0px_#f8bbd0] rotate-[0.5deg]">
+      <h2 className="text-5xl md:text-6xl font-black text-[#880e4f] mb-10 md:mb-14 tracking-tight">大腦色彩畫家 🧠</h2>
       {phase === 'MEMORIZE' ? (
         <>
-          <div className="mb-16 flex flex-col items-center">
-            <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center text-6xl font-black border-4 border-[#5d4037] animate-pulse shadow-xl">{timer}</div>
-            <p className="text-[#c2185b] font-black text-3xl mt-10">快快記住這 6 個單詞！</p>
+          <div className="mb-10 md:mb-16 flex flex-col items-center">
+            <div className="w-24 h-24 md:w-28 md:h-28 bg-white rounded-full flex items-center justify-center text-5xl md:text-6xl font-black border-4 border-[#5d4037] animate-pulse shadow-xl">{timer}</div>
+            <p className="text-[#c2185b] font-black text-2xl md:text-3xl mt-8 md:mt-10">快快記住這 6 個單詞！</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 md:gap-10">
             {words.map(w => (
-              <div key={w.id} className="bg-white p-10 rounded-[2.5rem] shadow-xl border-4 border-[#5d4037] flex flex-col items-center group rotate-[1deg]">
-                <span className="text-8xl mb-6 floating">{w.emoji}</span>
-                <span className="font-black text-4xl text-[#5d4037]">{w.english}</span>
+              <div key={w.id} className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-xl border-4 border-[#5d4037] flex flex-col items-center group rotate-[1deg]">
+                <span className="text-6xl md:text-8xl mb-4 md:mb-6 floating">{w.emoji}</span>
+                <span className="font-black text-2xl md:text-4xl text-[#5d4037]">{w.english}</span>
               </div>
             ))}
           </div>
         </>
       ) : (
         <>
-          <p className="text-6xl font-black text-[#c2185b] mb-16">哪一個單詞被擦掉啦？ 🤔</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-10 mb-20 opacity-10 blur-xl scale-90">
+          <p className="text-4xl md:text-6xl font-black text-[#c2185b] mb-10 md:mb-16">哪一個單詞被擦掉啦？ 🤔</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 md:gap-10 mb-12 md:mb-20 opacity-10 blur-xl scale-90">
             {words.filter(w => w.id !== missingWord?.id).map(w => (
-              <div key={w.id} className="bg-white p-10 rounded-[2.5rem] flex flex-col items-center"><span className="text-8xl mb-6">{w.emoji}</span><span className="font-black text-4xl">{w.english}</span></div>
+              <div key={w.id} className="bg-white p-6 md:p-10 rounded-[2.5rem] flex flex-col items-center"><span className="text-6xl md:text-8xl mb-4 md:mb-6">{w.emoji}</span><span className="font-black text-2xl md:text-4xl">{w.english}</span></div>
             ))}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {options.map(opt => (
-              <button key={opt.id} onClick={() => { if (opt.id === missingWord?.id) onComplete(); else startRound(); }} 
-                className="hand-drawn-btn bg-white p-12 font-black text-4xl text-[#880e4f] border-[#5d4037] shadow-[6px_6px_0px_#5d4037] hover:bg-[#fce4ec]">
+              <button key={opt.id} onClick={() => handleSelect(opt)} 
+                className="hand-drawn-btn bg-white p-8 md:p-12 font-black text-2xl md:text-4xl text-[#880e4f] border-[#5d4037] shadow-[6px_6px_0px_#5d4037] hover:bg-[#fce4ec]">
                 {opt.english}
               </button>
             ))}
